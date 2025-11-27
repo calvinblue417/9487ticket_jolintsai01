@@ -1,3 +1,4 @@
+
 export enum AppStep {
   HOME = 'HOME',
   START = 'START',
@@ -7,6 +8,7 @@ export enum AppStep {
   LIGHT_1 = 'LIGHT_1',
   LIGHT_2 = 'LIGHT_2',
   LIGHT_3 = 'LIGHT_3', // Final Question
+  LIGHT_4 = 'LIGHT_4', // Transition before End
   END = 'END',
 }
 
