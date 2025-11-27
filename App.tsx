@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { AppStep, UserState } from './types';
 import { TEST_MODE, TARGET_DATE, getImg, CARDS_CONFIG, FINAL_ANSWER } from './constants';
 
@@ -35,6 +35,46 @@ const hashString = async (text: string): Promise<string> => {
   // 將 ArrayBuffer 轉回 16 進制字串
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
+/**
+ * 自動縮放文字元件
+ * 當文字寬度超過容器時，自動縮小字體以保持不換行
+ */
+const AutoFitText: React.FC<{ text: string; className?: string; style?: React.CSSProperties }> = ({ text, className, style }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLSpanElement>(null);
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const content = contentRef.current;
+    if (!container || !content) return;
+
+    // 先重置 scale 以取得原始寬度
+    content.style.transform = 'scale(1)';
+    
+    const containerWidth = container.clientWidth;
+    const contentWidth = content.scrollWidth;
+
+    if (contentWidth > containerWidth) {
+      const scale = containerWidth / contentWidth;
+      content.style.transform = `scale(${scale})`;
+    } else {
+      content.style.transform = 'scale(1)';
+    }
+  }, [text]);
+
+  return (
+    <div 
+      ref={containerRef} 
+      className={`flex items-center justify-center whitespace-nowrap ${className || ''}`} 
+      style={style}
+    >
+      <span ref={contentRef} className="origin-center block">
+        {text}
+      </span>
+    </div>
+  );
 };
 
 /**
@@ -119,7 +159,7 @@ const App: React.FC = () => {
 
   const handleNameSubmit = () => {
     if (!inputName.trim()) return;
-    // 僅移除前後空白，保留中間空白與大小寫，符合玩家不希望改動名字的需求
+    // 僅移除前後空白，保留中間空白與大小寫
     setUser(prev => ({ ...prev, name: inputName.trim() }));
     
     // 觸發淡出動畫
@@ -231,12 +271,12 @@ const App: React.FC = () => {
     // Light 1 -> Light 2 (2500ms)
     if (step === AppStep.LIGHT_1) setTimeout(() => setStep(AppStep.LIGHT_2), 2500); 
     
-    // Light 2 -> Light 3 (1200ms)
+    // Light 2 -> Light 3 (1200ms) - 縮短時間
     if (step === AppStep.LIGHT_2) setTimeout(() => setStep(AppStep.LIGHT_3), 1200);
 
     // Light 3 是答題頁，答對後手動切換到 Light 4
     
-    // Light 4 -> End (1200ms)
+    // Light 4 -> End (1200ms) - 縮短時間
     if (step === AppStep.LIGHT_4) setTimeout(() => setStep(AppStep.END), 1200);
   }, [step]);
 
@@ -502,13 +542,13 @@ const App: React.FC = () => {
         {step === AppStep.END && (
             <>
             <img src={getImg('end.png')} className="w-full h-full object-contain" alt="End" />
-            {/* 顯示玩家名字 - #774d00 字體 */}
-            <div 
-                className="absolute text-center text-[#774d00] font-bold text-[5vmin] drop-shadow-md"
-                style={{ top: '40%', left: '50%', transform: 'translateX(-50%)', width: '40%', height: '8%' }}
-            >
-                {user.name}
-            </div>
+            
+            {/* 調整 END 頁玩家名字的寬度：請修改下方 style 中的 width: '40%' */}
+            <AutoFitText 
+              text={user.name}
+              className="absolute text-[#774d00] font-bold text-[5vmin] drop-shadow-md"
+              style={{ top: '40%', left: '50%', transform: 'translateX(-50%)', width: '5%', height: '8%' }}
+            />
             </>
         )}
       </div>
