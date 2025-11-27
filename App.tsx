@@ -85,7 +85,7 @@ const App: React.FC = () => {
       'home.png', 'start.png', 'name.png', 'carousel.png',
       ...CARDS_CONFIG.map(c => `card_${c.id}_front.png`),
       ...CARDS_CONFIG.map(c => `card_${c.id}_back.png`),
-      'light_1.png', 'light_2.png', 'light_3.png', 'end.png'
+      'light_1.png', 'light_2.png', 'light_3.png', 'light_4.png', 'end.png'
     ];
     images.forEach(src => { const img = new Image(); img.src = getImg(src); });
   }, []);
@@ -119,7 +119,8 @@ const App: React.FC = () => {
 
   const handleNameSubmit = () => {
     if (!inputName.trim()) return;
-    setUser(prev => ({ ...prev, name: inputName }));
+    // 僅移除前後空白，保留中間空白與大小寫，符合玩家不希望改動名字的需求
+    setUser(prev => ({ ...prev, name: inputName.trim() }));
     
     // 觸發淡出動畫
     setIsTransitioning(true);
@@ -188,6 +189,7 @@ const App: React.FC = () => {
                 
                 // 檢查是否全破
                 if (newSolved.length === CARDS_CONFIG.length) {
+                  // 進入 Light 1 (800ms 後)
                   setTimeout(() => setStep(AppStep.LIGHT_1), 800);
                 }
             }
@@ -217,16 +219,25 @@ const App: React.FC = () => {
     const hashedInput = await hashString(cleanInput);
 
     if (hashedInput === FINAL_ANSWER) {
-      setStep(AppStep.END);
+      // 答對後前往 LIGHT_4
+      setStep(AppStep.LIGHT_4);
     } else {
       handleError();
     }
   };
 
-  // Light 過場自動切換 (時間為 2500ms)
+  // Light 過場自動切換
   useEffect(() => {
+    // Light 1 -> Light 2 (2500ms)
     if (step === AppStep.LIGHT_1) setTimeout(() => setStep(AppStep.LIGHT_2), 2500); 
-    if (step === AppStep.LIGHT_2) setTimeout(() => setStep(AppStep.LIGHT_3), 2500);
+    
+    // Light 2 -> Light 3 (1200ms)
+    if (step === AppStep.LIGHT_2) setTimeout(() => setStep(AppStep.LIGHT_3), 1200);
+
+    // Light 3 是答題頁，答對後手動切換到 Light 4
+    
+    // Light 4 -> End (1200ms)
+    if (step === AppStep.LIGHT_4) setTimeout(() => setStep(AppStep.END), 1200);
   }, [step]);
 
   // 計算目前顯示的卡片
@@ -236,8 +247,25 @@ const App: React.FC = () => {
   const cardWidthPct = (100 - (Number(CAROUSEL_LAYOUT.cardGap.replace('%','')) * (CAROUSEL_LAYOUT.visibleCount - 1))) / CAROUSEL_LAYOUT.visibleCount;
 
   // 判斷是否需要渲染遊戲層 (Carousel/Cards/Lights)
-  // 當 step 是 NAME 時也渲染，作為背景預載，但需鎖定互動
-  const shouldRenderGameLayer = [AppStep.NAME, AppStep.CAROUSEL, AppStep.LIGHT_1, AppStep.LIGHT_2, AppStep.LIGHT_3].includes(step);
+  // 注意：加入 END 是為了讓 LIGHT_4 能夠在 END 淡入時作為背景保留
+  const shouldRenderGameLayer = [
+    AppStep.NAME, 
+    AppStep.CAROUSEL, 
+    AppStep.LIGHT_1, 
+    AppStep.LIGHT_2, 
+    AppStep.LIGHT_3, 
+    AppStep.LIGHT_4,
+    AppStep.END
+  ].includes(step);
+
+  // 判斷是否顯示輪播 UI (背景、卡片、箭頭)
+  // 一旦進入 LIGHT 階段，強制隱藏輪播介面，避免穿幫
+  // 注意：LIGHT_1 需要顯示輪播背景(但不顯示按鈕)以達成無縫銜接，所以這裡只控制「UI互動元件」
+  const showCarouselUI = step === AppStep.NAME || step === AppStep.CAROUSEL;
+  
+  // 是否顯示輪播背景 (LIGHT_1 也要顯示，讓 LIGHT_1 圖片疊在上面)
+  const showCarouselBg = [AppStep.NAME, AppStep.CAROUSEL, AppStep.LIGHT_1].includes(step);
+
   const isGameLayerInteractive = step !== AppStep.NAME;
 
   return (
@@ -295,133 +323,141 @@ const App: React.FC = () => {
       {/* 當 step 是 NAME 時，此層級在底部作為背景 */}
       {shouldRenderGameLayer && (
         <div className={`absolute inset-0 w-full h-full overflow-hidden perspective-1000 z-0 ${isGameLayerInteractive ? 'pointer-events-auto' : 'pointer-events-none'}`}>
-          {/* 背景 */}
-          <img src={getImg('carousel.png')} className="absolute inset-0 w-full h-full object-contain" alt="Bg" />
-
-          {/* 
-            小卡輪播容器 
-          */}
-          <div 
-            className="absolute flex items-end z-10"
-            style={{ 
-                bottom: CAROUSEL_LAYOUT.bottom, 
-                left: CAROUSEL_LAYOUT.left, 
-                width: CAROUSEL_LAYOUT.width, 
-                height: CAROUSEL_LAYOUT.height 
-            }}
-          >
-            {/* 左箭頭 */}
-            <button 
-                onClick={handlePrev}
-                disabled={carouselIndex === 0}
-                className={`absolute -left-[10%] top-1/2 -translate-y-1/2 text-white font-bold flex items-center justify-center transition-opacity ${carouselIndex === 0 ? 'opacity-30' : 'opacity-100'}`}
-                style={{ width: CAROUSEL_LAYOUT.arrowSize, height: CAROUSEL_LAYOUT.arrowSize, fontSize: '4vmin' }}
-            >
-                ⇦
-            </button>
-
-            {/* 卡片列表 */}
-            <div className="w-full h-full flex justify-between items-end">
-                {visibleCards.map((card) => {
-                    const isSolved = user.solvedCards.includes(card.id);
-                    const isActive = activeCardId === card.id;
-                    return (
-                        <div 
-                            key={card.id} 
-                            className="relative transition-transform hover:scale-105 h-full"
-                            style={{ 
-                                width: `${cardWidthPct}%`
-                            }}
-                        >
-                        <div 
-                            onClick={() => isGameLayerInteractive && !isActive && !isSolved && openCard(card.id)}
-                            className={`w-full h-full relative cursor-pointer ${isActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
-                        >
-                            <img src={getImg(`card_${card.id}_front.png`)} className="w-full h-full object-contain" />
-                            {isSolved && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                                <div className="border-2 border-red-500 text-red-500 font-bold text-[3vmin] p-1 rotate-[-15deg] bg-black/80">
-                                咒語<br/>生效
-                                </div>
-                            </div>
-                            )}
-                        </div>
-                        </div>
-                    );
-                })}
-            </div>
-
-            {/* 右箭頭 */}
-            <button 
-                onClick={handleNext}
-                disabled={carouselIndex + CAROUSEL_LAYOUT.visibleCount >= CARDS_CONFIG.length}
-                className={`absolute -right-[10%] top-1/2 -translate-y-1/2 text-white font-bold flex items-center justify-center transition-opacity ${carouselIndex + CAROUSEL_LAYOUT.visibleCount >= CARDS_CONFIG.length ? 'opacity-30' : 'opacity-100'}`}
-                style={{ width: CAROUSEL_LAYOUT.arrowSize, height: CAROUSEL_LAYOUT.arrowSize, fontSize: '4vmin' }}
-            >
-                ⇨
-            </button>
-          </div>
-
-          {/* 
-            主卡片翻轉層 (Overlay) 
-          */}
-          {activeCardId !== null && (
-            <div 
-              className={`absolute inset-0 z-50 transition-all duration-700 ease-in-out preserve-3d`}
-              style={{
-                transform: `
-                  translateY(${isExpanded ? '0' : '50%'}) 
-                  scale(${isExpanded ? '1' : '0.2'}) 
-                  rotateY(${isFlipped ? '180deg' : '0deg'})
-                `,
-                opacity: isExpanded ? 1 : 0.8
-              }}
-            >
-              {/* 正面 (Front Face) */}
-              <div className="absolute inset-0 w-full h-full backface-hidden" style={{ zIndex: 2 }}>
-                 <img src={getImg(`card_${activeCardId}_front.png`)} className="w-full h-full object-contain" />
-              </div>
-
-              {/* 背面 (Back Face) */}
-              <div 
-                className="absolute inset-0 w-full h-full backface-hidden rotate-y-180 bg-black"
-                style={{ zIndex: 1 }}
-              >
-                 <img src={getImg(`card_${activeCardId}_back.png`)} className="w-full h-full object-contain" />
-                 
-                 {/* 背面互動層 */}
-                 <div className="absolute inset-0">
-                    <input 
-                      type="text" value={inputCardAnswer} onChange={e => setInputCardAnswer(e.target.value)}
-                      placeholder="輸入咒語"
-                      className={`absolute bg-white/90 text-black text-center text-[3vmin] rounded outline-none font-bold ${shakeError ? 'animate-shake-center border-2 border-red-600' : ''}`}
-                      style={{ top: '48%', left: '50%', transform: 'translateX(-50%)', width: '50%', height: '7%' }}
-                    />
-                    {shakeError && (
-                      <div className="absolute text-red-500 font-bold text-[3vmin] animate-shake-center" style={{ top: '70%', left: '50%', transform: 'translateX(-50%)' }}>
-                        咒語無效
-                      </div>
-                    )}
-
-                    {/* 確認按鈕 */}
-                    <button onClick={submitCardAnswer}
-                      className="absolute cursor-pointer bg-transparent"
-                      style={{ top: '77%', right: '25%', width: '22.5%', height: '7%' }}
-                    />
-                    {/* 返回按鈕 */}
-                    <button onClick={() => closeCard(false)}
-                      className="absolute cursor-pointer bg-transparent"
-                      style={{ top: '77%', left: '25%', width: '25.5%', height: '7%' }}
-                    />
-                 </div>
-              </div>
-            </div>
+          
+          {/* 渲染輪播背景 (含 LIGHT_1 避免黑畫面) */}
+          {showCarouselBg && (
+             <img src={getImg('carousel.png')} className="absolute inset-0 w-full h-full object-contain" alt="Bg" />
           )}
 
-          {/* Light 過場 (1 -> 2 -> 3) */}
+          {/* 只有在 NAME 或 CAROUSEL 階段才渲染卡片 UI 與箭頭 */}
+          {showCarouselUI && (
+            <>
+              {/* 小卡輪播容器 */}
+              <div 
+                className="absolute flex items-end z-10"
+                style={{ 
+                    bottom: CAROUSEL_LAYOUT.bottom, 
+                    left: CAROUSEL_LAYOUT.left, 
+                    width: CAROUSEL_LAYOUT.width, 
+                    height: CAROUSEL_LAYOUT.height 
+                }}
+              >
+                {/* 左箭頭 */}
+                <button 
+                    onClick={handlePrev}
+                    disabled={carouselIndex === 0}
+                    className={`absolute -left-[10%] top-1/2 -translate-y-1/2 text-white font-bold flex items-center justify-center transition-opacity ${carouselIndex === 0 ? 'opacity-30' : 'opacity-100'}`}
+                    style={{ width: CAROUSEL_LAYOUT.arrowSize, height: CAROUSEL_LAYOUT.arrowSize, fontSize: '4vmin' }}
+                >
+                    ⇦
+                </button>
+
+                {/* 卡片列表 */}
+                <div className="w-full h-full flex justify-between items-end">
+                    {visibleCards.map((card) => {
+                        const isSolved = user.solvedCards.includes(card.id);
+                        const isActive = activeCardId === card.id;
+                        return (
+                            <div 
+                                key={card.id} 
+                                className="relative transition-transform hover:scale-105 h-full"
+                                style={{ 
+                                    width: `${cardWidthPct}%`
+                                }}
+                            >
+                            <div 
+                                onClick={() => isGameLayerInteractive && !isActive && !isSolved && openCard(card.id)}
+                                className={`w-full h-full relative cursor-pointer ${isActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
+                            >
+                                <img src={getImg(`card_${card.id}_front.png`)} className="w-full h-full object-contain" />
+                                {isSolved && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                                    <div className="border-2 border-red-500 text-red-500 font-bold text-[3vmin] p-1 rotate-[-15deg] bg-black/80">
+                                    咒語<br/>生效
+                                    </div>
+                                </div>
+                                )}
+                            </div>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* 右箭頭 */}
+                <button 
+                    onClick={handleNext}
+                    disabled={carouselIndex + CAROUSEL_LAYOUT.visibleCount >= CARDS_CONFIG.length}
+                    className={`absolute -right-[10%] top-1/2 -translate-y-1/2 text-white font-bold flex items-center justify-center transition-opacity ${carouselIndex + CAROUSEL_LAYOUT.visibleCount >= CARDS_CONFIG.length ? 'opacity-30' : 'opacity-100'}`}
+                    style={{ width: CAROUSEL_LAYOUT.arrowSize, height: CAROUSEL_LAYOUT.arrowSize, fontSize: '4vmin' }}
+                >
+                    ⇨
+                </button>
+              </div>
+
+              {/* 主卡片翻轉層 (Overlay) */}
+              {activeCardId !== null && (
+                <div 
+                  className={`absolute inset-0 z-50 transition-all duration-700 ease-in-out preserve-3d`}
+                  style={{
+                    transform: `
+                      translateY(${isExpanded ? '0' : '50%'}) 
+                      scale(${isExpanded ? '1' : '0.2'}) 
+                      rotateY(${isFlipped ? '180deg' : '0deg'})
+                    `,
+                    opacity: isExpanded ? 1 : 0.8
+                  }}
+                >
+                  {/* 正面 (Front Face) */}
+                  <div className="absolute inset-0 w-full h-full backface-hidden" style={{ zIndex: 2 }}>
+                     <img src={getImg(`card_${activeCardId}_front.png`)} className="w-full h-full object-contain" />
+                  </div>
+
+                  {/* 背面 (Back Face) */}
+                  <div 
+                    className="absolute inset-0 w-full h-full backface-hidden rotate-y-180 bg-black"
+                    style={{ zIndex: 1 }}
+                  >
+                     <img src={getImg(`card_${activeCardId}_back.png`)} className="w-full h-full object-contain" />
+                     
+                     {/* 背面互動層 */}
+                     <div className="absolute inset-0">
+                        <input 
+                          type="text" value={inputCardAnswer} onChange={e => setInputCardAnswer(e.target.value)}
+                          placeholder="輸入咒語"
+                          className={`absolute bg-white/90 text-black text-center text-[3vmin] rounded outline-none font-bold ${shakeError ? 'animate-shake-center border-2 border-red-600' : ''}`}
+                          style={{ top: '48%', left: '50%', transform: 'translateX(-50%)', width: '50%', height: '7%' }}
+                        />
+                        {shakeError && (
+                          <div className="absolute text-red-500 font-bold text-[3vmin] animate-shake-center" style={{ top: '70%', left: '50%', transform: 'translateX(-50%)' }}>
+                            咒語無效
+                          </div>
+                        )}
+
+                        {/* 確認按鈕 */}
+                        <button onClick={submitCardAnswer}
+                          className="absolute cursor-pointer bg-transparent"
+                          style={{ top: '77%', right: '25%', width: '22.5%', height: '7%' }}
+                        />
+                        {/* 返回按鈕 */}
+                        <button onClick={() => closeCard(false)}
+                          className="absolute cursor-pointer bg-transparent"
+                          style={{ top: '77%', left: '25%', width: '25.5%', height: '7%' }}
+                        />
+                     </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Light 過場 (1 -> 2 -> 3 -> 4 -> END) */}
+          
+          {/* Light 1 */}
           <div className={`absolute inset-0 z-40 transition-opacity duration-1000 pointer-events-none ${step === AppStep.LIGHT_1 ? 'opacity-100' : 'opacity-0'}`}>
             <img src={getImg('light_1.png')} className="w-full h-full object-contain" />
           </div>
+          
+          {/* Light 2 */}
           <div className={`absolute inset-0 z-40 transition-opacity duration-1000 pointer-events-none ${step === AppStep.LIGHT_2 ? 'opacity-100' : 'opacity-0'}`}>
             <img src={getImg('light_2.png')} className="w-full h-full object-contain" />
           </div>
@@ -450,22 +486,32 @@ const App: React.FC = () => {
               </>
             )}
           </div>
+
+          {/* Light 4 (過場) */}
+          {/* 在 LIGHT_4 或 END 階段都保持顯示，作為墊底背景 */}
+          <div className={`absolute inset-0 z-40 transition-opacity duration-1000 pointer-events-none ${step === AppStep.LIGHT_4 || step === AppStep.END ? 'opacity-100' : 'opacity-0'}`}>
+            <img src={getImg('light_4.png')} className="w-full h-full object-contain bg-black" />
+          </div>
+
         </div>
       )}
 
       {/* --- END --- */}
-      {step === AppStep.END && (
-        <div className="absolute inset-0 w-full h-full z-10">
-          <img src={getImg('end.png')} className="w-full h-full object-contain" alt="End" />
-          {/* 顯示玩家名字 - #774d00 字體 */}
-          <div 
-             className="absolute text-center text-[#774d00] font-bold text-[5vmin] drop-shadow-md"
-             style={{ top: '40%', left: '50%', transform: 'translateX(-50%)', width: '40%', height: '8%' }}
-          >
-             {user.name}
-          </div>
-        </div>
-      )}
+      {/* 統一使用 transition-opacity duration-1000 淡入，且層級改為 z-50 以覆蓋 Light 4 */}
+      <div className={`absolute inset-0 w-full h-full z-50 transition-opacity duration-1000 ${step === AppStep.END ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+        {step === AppStep.END && (
+            <>
+            <img src={getImg('end.png')} className="w-full h-full object-contain" alt="End" />
+            {/* 顯示玩家名字 - #774d00 字體 */}
+            <div 
+                className="absolute text-center text-[#774d00] font-bold text-[5vmin] drop-shadow-md"
+                style={{ top: '40%', left: '50%', transform: 'translateX(-50%)', width: '40%', height: '8%' }}
+            >
+                {user.name}
+            </div>
+            </>
+        )}
+      </div>
 
     </SquarePage>
   );
