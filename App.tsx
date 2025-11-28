@@ -9,14 +9,14 @@ import { TEST_MODE, TARGET_DATE, getImg, CARDS_CONFIG, FINAL_ANSWER } from './co
 const CAROUSEL_LAYOUT = {
   // 容器定位 (相對於正方形背景)
   bottom: '10%', 
-  left: '10%',
-  width: '80%',
-  height: '25%',
+  left: '15%',
+  width: '70%',
+  height: '22%',
 
   // 輪播設定
   visibleCount: 4,  // 一次顯示幾張
   cardGap: '0%',    // 卡片間距
-  arrowSize: '15%',  // 左右箭頭大小
+  arrowSize: '10%',  // 左右箭頭大小
   
   // 卡片寬度調整 (若需要個別調整卡片大小可改這裡)
   // 計算方式會自動處理，這裡主要影響初始比例
@@ -387,9 +387,9 @@ const App: React.FC = () => {
                     onClick={handlePrev}
                     disabled={carouselIndex === 0}
                     className={`absolute -left-[10%] top-1/2 -translate-y-1/2 text-white font-bold flex items-center justify-center transition-opacity ${carouselIndex === 0 ? 'opacity-30' : 'opacity-100'}`}
-                    style={{ width: CAROUSEL_LAYOUT.arrowSize, height: CAROUSEL_LAYOUT.arrowSize, fontSize: '4vmin' }}
+                    style={{ width: CAROUSEL_LAYOUT.arrowSize, height: CAROUSEL_LAYOUT.arrowSize, fontSize: '6vmin' }}
                 >
-                    ⇦
+                    ≪
                 </button>
 
                 {/* 卡片列表 */}
@@ -428,9 +428,9 @@ const App: React.FC = () => {
                     onClick={handleNext}
                     disabled={carouselIndex + CAROUSEL_LAYOUT.visibleCount >= CARDS_CONFIG.length}
                     className={`absolute -right-[10%] top-1/2 -translate-y-1/2 text-white font-bold flex items-center justify-center transition-opacity ${carouselIndex + CAROUSEL_LAYOUT.visibleCount >= CARDS_CONFIG.length ? 'opacity-30' : 'opacity-100'}`}
-                    style={{ width: CAROUSEL_LAYOUT.arrowSize, height: CAROUSEL_LAYOUT.arrowSize, fontSize: '4vmin' }}
+                    style={{ width: CAROUSEL_LAYOUT.arrowSize, height: CAROUSEL_LAYOUT.arrowSize, fontSize: '6vmin' }}
                 >
-                    ⇨
+                    ≫
                 </button>
               </div>
 
