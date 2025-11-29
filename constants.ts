@@ -11,7 +11,7 @@ export const GITHUB_BASE_URL = ""; // 圖片素材路徑
 // 請在 answer 欄位填入正確的咒語答案
 export const CARDS_CONFIG = [
   { id: 1, answer: "b74373ee429b49c01636ba65e7c4884be13807031bb46a29be3ad149c4a48af6" },
-  { id: 2, answer: "70c779de3bc1337f842b9ce2a97b54f27b9334aae60ecf1060d57d5e2225bb6b" },
+  { id: 2, answer: "a565f049499290c29ae14e70e595d270389baceb8a5260c8691c19a5d0cf348b" },
   { id: 3, answer: "59643d5dc0153442a5a9014d5b6c82cdcb6d53027fd78dacef527c7818901737" },
   { id: 4, answer: "5725693a81c41bd1bb6a80477e9189ba938c7d1d05a8eaf5d500ddec5b63bef1" },
   { id: 5, answer: "eba03aaf9113950b7eb4ae6f610281b2add7ec658ca08b96a0c27e4ab5fbf7d3" },
